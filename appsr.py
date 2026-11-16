@@ -55,11 +55,14 @@ def load_retriever():
 retriever = load_retriever()
 
 llm_model = ChatGroq(
-    model="openai/gpt-oss-120b",
+    model="llama-3.1-8b-instant",
     temperature=0.0,
-    max_tokens=2048,
-    api_key=GROQ_API_KEY
-)
+    max_tokens=700,
+    api_key=GROQ_KEY_1
+).with_fallbacks([
+    ChatGroq(model="meta-llama/llama-4-scout-17b-16e-instruct", temperature=0.0, max_tokens=700, api_key=GROQ_KEY_2),
+    ChatGroq(model="llama-3.1-8b-instant", temperature=0.0, max_tokens=700, api_key=GROQ_KEY_2),
+])
 
 GUARDIAL_PROMPT = ChatPromptTemplate.from_template("""
 You are a strict scope classifier for Zyro Dynamics' internal HR Help Desk.
