@@ -53,6 +53,8 @@ def load_retriever():
     )
 
 retriever = load_retriever()
+GROQ_KEY_1 = st.secrets["GROQ_API_KEY"]
+GROQ_KEY_2 = st.secrets.get("GROQ_API_KEY_2", GROQ_KEY_1)
 
 llm_model = ChatGroq(
     model="llama-3.1-8b-instant",
