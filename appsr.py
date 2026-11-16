@@ -18,8 +18,6 @@ st.set_page_config(
 st.title("🤖 HR Policy Assistant")
 st.caption("Ask me anything about the company HR policy document.")
 
-# Load API key from Streamlit Secrets (or environment variable)
-GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", os.environ.get("GROQ_API_KEY", ""))
 CORPUS_PATH = "./zyro-dynamics-hr-corpus"
 
 REFUSAL_MESSAGE = (
@@ -53,8 +51,10 @@ def load_retriever():
     )
 
 retriever = load_retriever()
-GROQ_KEY_1 = st.secrets["GROQ_API_KEY"]
-GROQ_KEY_2 = st.secrets.get("GROQ_API_KEY_2", GROQ_KEY_1)
+
+# Read keys safely from Streamlit Secrets (so GitHub Push Protection never blocks your push)
+GROQ_KEY_1 = st.secrets.get("GROQ_API_KEY", os.environ.get("GROQ_API_KEY", ""))
+GROQ_KEY_2 = st.secrets.get("GROQ_API_KEY_2", os.environ.get("GROQ_API_KEY_2", GROQ_KEY_1))
 
 llm_model = ChatGroq(
     model="llama-3.1-8b-instant",
