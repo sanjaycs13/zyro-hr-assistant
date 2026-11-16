@@ -1,5 +1,6 @@
 import os
 import streamlit as st
+from groq import Groq
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -52,19 +53,33 @@ def load_retriever():
 
 retriever = load_retriever()
 
-# Read keys safely from Streamlit Secrets (so GitHub Push Protection never blocks your push)
 GROQ_KEY_1 = st.secrets.get("GROQ_API_KEY", os.environ.get("GROQ_API_KEY", ""))
 GROQ_KEY_2 = st.secrets.get("GROQ_API_KEY_2", os.environ.get("GROQ_API_KEY_2", GROQ_KEY_1))
 
-llm_model = ChatGroq(
-    model="llama-3.1-8b-instant",
-    temperature=0.0,
-    max_tokens=700,
-    api_key=GROQ_KEY_1
-).with_fallbacks([
-    ChatGroq(model="meta-llama/llama-4-scout-17b-16e-instruct", temperature=0.0, max_tokens=700, api_key=GROQ_KEY_2),
-    ChatGroq(model="llama-3.1-8b-instant", temperature=0.0, max_tokens=700, api_key=GROQ_KEY_2),
-])
+@st.cache_resource
+def get_llm():
+    avail = [m.id for m in Groq(api_key=GROQ_KEY_1).models.list().data]
+    chat_models = [
+        m for m in avail
+        if not any(x in m.lower() for x in ["whisper", "guard", "tts", "embed", "qwen3-32b"])
+    ]
+    preferred = [
+        m for m in [
+            "meta-llama/llama-4-scout-17b-16e-instruct",
+            "openai/gpt-oss-20b",
+            "llama-3.1-8b-instant",
+            "openai/gpt-oss-120b",
+        ] if m in chat_models
+    ] or chat_models[:2]
+
+    primary = ChatGroq(model=preferred[0], temperature=0.0, max_tokens=1200, api_key=GROQ_KEY_1)
+    fallbacks = [
+        ChatGroq(model=m, temperature=0.0, max_tokens=1200, api_key=GROQ_KEY_2)
+        for m in preferred
+    ]
+    return primary.with_fallbacks(fallbacks)
+
+llm_model = get_llm()
 
 GUARDIAL_PROMPT = ChatPromptTemplate.from_template("""
 You are a strict scope classifier for Zyro Dynamics' internal HR Help Desk.
@@ -135,7 +150,7 @@ if question := st.chat_input("Ask a question about HR policy..."):
                 )
                 rag_chain = RAG_PROMPT | llm_model | StrOutputParser()
                 raw_answer = rag_chain.invoke({"context": context, "question": question})
-                answer = " ".join(raw_answer.replace("**", "").replace("*", "").split())
+                answer = " ".join(raw_answer.replace("**", "").replace("*", "").replace("\u2011", "-").split())
 
                 sources_list = [
                     {
